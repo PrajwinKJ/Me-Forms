@@ -160,13 +160,13 @@ async function saveForm() {
     const payload = {
         title: title || 'Untitled Form',
         description: desc,
-        questions: questions
+        //questions: questions
     };
 
     // -----------------------------------------------------------------
     // API INTEGRATION POINT: POST /forms
     // -----------------------------------------------------------------
-    /*
+
     try {
         const res = await fetch('http://localhost:8000/api/forms', {
             method: 'POST',
@@ -178,11 +178,11 @@ async function saveForm() {
     } catch(err) {
         console.error("Backend unavailable, falling back to local simulation logic.");
     }
-    */
+    
     
     // Set Local state for testing interface behavior
-    currentForm = payload;
-    alert("Form Saved locally! Switch to 'Fill Form' view to interact with it.");
+    /*currentForm = payload;
+    alert("Form Saved locally! Switch to 'Fill Form' view to interact with it.");*/
 }
 
 /* =========================================
