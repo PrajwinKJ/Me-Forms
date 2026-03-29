@@ -14,9 +14,9 @@ app.add_middleware(
 
 class Form_structure(BaseModel):
     title: str
-    descripton: str
+    description: str
 
 @app.post("/api/forms")
 def form(data: Form_structure):
-    print(data.title)
+    print(data.title,data.description)
     return "ok"
