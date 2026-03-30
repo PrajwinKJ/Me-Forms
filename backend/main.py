@@ -70,6 +70,12 @@ class Response(Base):
 
 Base.metadata.create_all(engine)
 
+@app.get("/")
+def root():
+    return{
+        "status":"Backend is running"
+    }
+
 @app.post("/api/forms")
 def form(data: Form_structure):
     with Session(engine) as session:
