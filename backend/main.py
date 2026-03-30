@@ -139,7 +139,8 @@ def response(formid: int):
 def submit_response(formid: int, data: Response_structure):
     with Session(engine) as session:
         for ans in data.answers:
-                qid=ans.questionId
-                answer=Response(form_id=formid,question_id=qid,answer=ans.answerValue)
-                session.add(answer)
+            qid=int(ans.questionId)
+            answer=Response(form_id=formid,question_id=qid,answer=ans.answerValue)
+            session.add(answer)
         session.commit()
+    return {"message": "Success"}
