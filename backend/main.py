@@ -70,7 +70,7 @@ class Response(Base):
 
 Base.metadata.create_all(engine)
 
-@app.get("/")
+@app.api_route("/",methods=["GET","HEAD"])
 def root():
     return{
         "status":"Backend is running"
