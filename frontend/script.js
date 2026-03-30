@@ -182,7 +182,7 @@ async function saveForm() {
     // -----------------------------------------------------------------
 
     try {
-        const res = await fetch('http://localhost:8000/api/forms', {
+        const res = await fetch('https://minimal-forms.onrender.com/api/forms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -214,7 +214,7 @@ async function saveForm() {
 async function discoverAllForms() {
     // Fetch all forms natively using the backend list API
     try {
-        const res = await fetch(`http://localhost:8000/api/forms`);
+        const res = await fetch(`https://minimal-forms.onrender.com/api/forms`);
         if(!res.ok) return [];
         return await res.json();
     } catch(err) {
@@ -274,7 +274,7 @@ async function loadFormUI(formId, isRespondent = false) {
     
     let formToRender = null;
     try {
-        const res = await fetch(`http://localhost:8000/api/forms/${formId}`);
+        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}`);
         formToRender = await res.json();
     } catch(err) {
         alert("Failed to fetch form structure");
@@ -363,7 +363,7 @@ async function submitResponse(e) {
     const formId = formData.get("form_id");
     
     try {
-        const res = await fetch(`http://localhost:8000/api/forms/${formId}/submit`, {
+        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -395,7 +395,7 @@ async function submitResponse(e) {
 
 async function fetchResponses(formId) {
     try {
-        const res = await fetch(`http://localhost:8000/api/forms/${formId}/responses`);
+        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}/responses`);
         const data = await res.json();
         return data; 
     } catch(err) {
