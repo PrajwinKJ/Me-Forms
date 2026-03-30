@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine,ForeignKey
 from sqlalchemy.orm import DeclarativeBase,Mapped,mapped_column,Session
 from sqlalchemy import JSON
+import os
 
 app=FastAPI()
 
@@ -40,7 +41,11 @@ class Response_structure(BaseModel):
 class Base(DeclarativeBase):
     pass
 
-engine=create_engine("postgresql+psycopg2://minimalform:password@localhost:5432/form")
+dburl=os.getenv("DatabaseUrl")
+if dburl.startswith("postgres://"):
+    dburl=dburl.replace("postgres://","postgresql://")
+
+engine=create_engine(dburl)
 
 class Form(Base):
     __tablename__="forms"
