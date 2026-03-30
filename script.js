@@ -55,7 +55,7 @@ function addQuestion() {
     // Inject the inner elements dynamically
     qBlock.innerHTML = `
         <div class="q-header">
-            <input type="text" placeholder="Question Text" class="q-text" id="q-text-${qId}">
+            <textarea placeholder="Question Text" class="q-text input-main" id="q-text-${qId}" style="min-height: 48px; padding-top: 8px;"></textarea>
             <select class="q-type" id="q-type-${qId}" onchange="toggleOptions(${qId})">
                 <option value="text">Short Answer</option>
                 <option value="mcq">Multiple Choice</option>
@@ -124,6 +124,9 @@ function deleteOption(optId) {
    4. SAVE FORM & API PLACEHOLDERS
    ========================================= */
 
+// To keep mock questions, since the current SQL schema only saves title & description
+let latestSavedFormState = null;
+
 async function saveForm() {
     const title = document.getElementById('form-title').value;
     const desc = document.getElementById('form-desc').value;
@@ -156,11 +159,10 @@ async function saveForm() {
         
         questions.push(qObj);
     });
-    
-    const payload = {
+        const payload = {
         title: title || 'Untitled Form',
         description: desc,
-        //questions: questions
+        questions: questions
     };
 
     // -----------------------------------------------------------------
@@ -173,61 +175,91 @@ async function saveForm() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        console.log("Form saved successfully to backend:", data);
+
+        const text = await res.text();
+        console.log("Form saved successfully to backend:", text);
+        alert("Form Saved to Database! Switch to 'Fill Form' view to retrieve it from the DB.");
     } catch(err) {
-        console.error("Backend unavailable, falling back to local simulation logic.");
+        console.error("Backend unavailable.", err);
+        alert("Backend offline. Cannot save form.");
     }
-    
-    
-    // Set Local state for testing interface behavior
-    /*currentForm = payload;
-    alert("Form Saved locally! Switch to 'Fill Form' view to interact with it.");*/
 }
 
 /* =========================================
    5. "FILL FORM" LOGIC (PUBLIC VIEW)
    ========================================= */
 
-async function loadFormForFilling(formId) {
-    // -----------------------------------------------------------------
-    // API INTEGRATION POINT: GET /forms/{id}
-    // -----------------------------------------------------------------
-    /*
+async function discoverAllForms() {
+    // Fetch all forms natively using the backend list API
     try {
-        // e.g. GET form structure mapping
-        const res = await fetch(`http://localhost:8000/api/forms/${formId}`);
-        const data = await res.json();
-        return data;
+        const res = await fetch(`http://localhost:8000/api/forms`);
+        if(!res.ok) return [];
+        return await res.json();
     } catch(err) {
-        console.warn("Using local form state structure mask.");
-        return currentForm;
+        console.warn("Backend unavailable or network error", err);
+        return [];
     }
-    */
-    
-    return currentForm; 
 }
 
 async function renderFillForm() {
     const container = document.getElementById('fill-form-container');
+    container.innerHTML = `<div class="empty-state">Fetching forms from Database...</div>`;
     
-    const formToRender = await loadFormForFilling(1); // MOCK ID retrieval
+    const dbForms = await discoverAllForms();
     
-    // UI State if no payload is found
-    if (!formToRender) {
-        container.innerHTML = `<div class="empty-state">No form available. Build and Save a form first!</div>`;
+    if (dbForms.length === 0) {
+        container.innerHTML = `<div class="empty-state">No forms available in the database. Build and Save a form first!</div>`;
         return;
     }
     
     let html = `
         <div style="margin-bottom: 24px;">
-            <h2 style="font-size: 2rem; margin-bottom: 8px;">${formToRender.title}</h2>
-            <p style="color: var(--text-sec);">${formToRender.description.replace(/\n/g, '<br>')}</p>
-        </div>
-        <form id="public-fill-form" onsubmit="submitResponse(event)">
+            <h2 style="font-size: 2rem; margin-bottom: 16px;">Select a Form from Database</h2>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
     `;
     
-    formToRender.questions.forEach((q, index) => {
+    dbForms.forEach(form => {
+        html += `<button class="btn btn-secondary" style="text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="loadFormUI(${form.id})"><strong>Form ${form.id}:</strong> ${form.title}</button>`;
+    });
+    
+    html += `</div></div>`;
+    container.innerHTML = html;
+}
+
+async function loadFormUI(formId) {
+    const container = document.getElementById('fill-form-container');
+    container.innerHTML = `<div class="empty-state">Loading Form ${formId}...</div>`;
+    
+    let formToRender = null;
+    try {
+        const res = await fetch(`http://localhost:8000/api/forms/${formId}`);
+        formToRender = await res.json();
+    } catch(err) {
+        alert("Failed to fetch form structure");
+        return;
+    }
+    
+    // Ensure questions exist natively from the backend payload
+    const questions = formToRender.questions || [];
+    
+    // Set global currentForm state so submitResponse works properly
+    currentForm = {
+        title: formToRender.title,
+        description: formToRender.description,
+        questions: questions
+    };
+    
+    let html = `
+        <div style="margin-bottom: 24px;">
+            <button class="btn btn-secondary btn-sm" onclick="renderFillForm()" style="margin-bottom: 12px;">← Back to Forms list</button>
+            <h2 style="font-size: 2rem; margin-bottom: 8px;">${formToRender.title}</h2>
+            <p style="color: var(--text-sec);">${(formToRender.description||'').replace(/\n/g, '<br>')}</p>
+        </div>
+        <form id="public-fill-form" onsubmit="submitResponse(event)">
+            <input type="hidden" name="form_id" value="${formToRender.id}">
+    `;
+    
+    questions.forEach((q, index) => {
         html += `<div class="question-block" style="background-color: transparent;">
             <div style="font-weight: 500; margin-bottom: 12px; font-size: 1.05rem;">
                 ${index + 1}. ${q.text}
