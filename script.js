@@ -190,6 +190,16 @@ async function saveForm() {
 
         const text = await res.text();
         console.log("Form saved successfully to backend:", text);
+        
+        const newFormId = parseInt(text);
+        if (!isNaN(newFormId)) {
+            let myForms = JSON.parse(localStorage.getItem('my_forms') || '[]');
+            if (!myForms.includes(newFormId)) {
+                myForms.push(newFormId);
+                localStorage.setItem('my_forms', JSON.stringify(myForms));
+            }
+        }
+        
         alert("Form Saved to Database! Switch to 'Fill Form' view to retrieve it from the DB.");
     } catch(err) {
         console.error("Backend unavailable.", err);
@@ -231,9 +241,11 @@ async function renderFillForm() {
     container.innerHTML = `<div class="empty-state">Fetching forms from Database...</div>`;
     
     const dbForms = await discoverAllForms();
+    const myFormIds = JSON.parse(localStorage.getItem('my_forms') || '[]');
+    const myForms = dbForms.filter(form => myFormIds.includes(form.id));
     
-    if (dbForms.length === 0) {
-        container.innerHTML = `<div class="empty-state">No forms available in the database. Build and Save a form first!</div>`;
+    if (myForms.length === 0) {
+        container.innerHTML = `<div class="empty-state">No forms found in your local storage. Build and Save a form first!</div>`;
         return;
     }
     
@@ -243,7 +255,7 @@ async function renderFillForm() {
             <div style="display: flex; flex-direction: column; gap: 8px;">
     `;
     
-    dbForms.forEach(form => {
+    myForms.forEach(form => {
         html += `
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                 <button class="btn btn-secondary" style="flex: 1; text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="loadFormUI(${form.id})"><strong>Form ${form.id}:</strong> ${form.title}</button>
@@ -396,9 +408,11 @@ async function renderResponses() {
     container.innerHTML = `<div class="empty-state">Fetching forms from Database...</div>`;
     
     const dbForms = await discoverAllForms();
+    const myFormIds = JSON.parse(localStorage.getItem('my_forms') || '[]');
+    const myForms = dbForms.filter(form => myFormIds.includes(form.id));
     
-    if (dbForms.length === 0) {
-        container.innerHTML = `<div class="empty-state">No forms available in the database.</div>`;
+    if (myForms.length === 0) {
+        container.innerHTML = `<div class="empty-state">No forms found in your local storage. Build and Save a form first!</div>`;
         return;
     }
     
@@ -408,7 +422,7 @@ async function renderResponses() {
             <div style="display: flex; flex-direction: column; gap: 8px;">
     `;
     
-    dbForms.forEach(form => {
+    myForms.forEach(form => {
         let safeTitle = (form.title || 'Untitled Form').replace(/'/g, "\\'");
         html += `<button class="btn btn-secondary" style="text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="viewResponsesForForm(${form.id}, '${safeTitle}')"><strong>Form ${form.id}:</strong> ${form.title}</button>`;
     });

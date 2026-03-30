@@ -75,7 +75,7 @@ def form(data: Form_structure):
             qobj=Question(form_id=Formobj.id,question=q.text,type=q.type,options=q.options)
             session.add(qobj)
         session.commit()
-    return "Success"
+    return Formobj.id
 
 @app.get("/api/forms")
 def get_all_forms():
