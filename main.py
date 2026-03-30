@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine,ForeignKey
 from sqlalchemy.orm import DeclarativeBase,Mapped,mapped_column,Session
+from sqlalchemy import JSON
 
 app=FastAPI()
 
@@ -14,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from typing import List, Optional
+from typing import List
 
 class Question_structure(BaseModel):
     id: str  
@@ -26,6 +27,15 @@ class Form_structure(BaseModel):
     title: str
     description: str
     questions: List[Question_structure]
+
+class Answer_structure(BaseModel):
+    questionId: str
+    questionText: str
+    answerValue: str
+
+class Response_structure(BaseModel):
+    answers: List[Answer_structure]
+    submittedAt: str
 
 class Base(DeclarativeBase):
     pass
@@ -44,8 +54,14 @@ class Question(Base):
     form_id: Mapped[int] =mapped_column(ForeignKey("forms.id"))
     question: Mapped[str] =mapped_column()
     type: Mapped[str] =mapped_column()
-    from sqlalchemy import JSON
-    options: Mapped[list] =mapped_column(JSON, nullable=True)
+    options: Mapped[list] =mapped_column(JSON,nullable=True)
+
+class Response(Base):
+    __tablename__="responses"
+    id: Mapped[int]= mapped_column(primary_key=True)
+    form_id: Mapped[int]= mapped_column(ForeignKey("forms.id"))
+    question_id: Mapped[int]= mapped_column(ForeignKey("questions.id"))
+    answer: Mapped[str]= mapped_column()
 
 Base.metadata.create_all(engine)
 
@@ -87,3 +103,38 @@ def getform(formid: int):
         return{
             "error": "Form not found!"
         }
+    
+@app.get("/api/forms/{formid}/responses")
+def response(formid: int):
+    with Session(engine) as session:
+        form=session.get(Form,formid)
+        questions=session.query(Question).filter(Question.form_id==formid).all()
+        answers=session.query(Response).filter(Response.form_id==formid).all()
+    
+    if form:
+        return{
+            "id":form.id,
+            "title":form.title,
+            "description":form.description,
+            "questions":[
+                {"id":q.id,
+                 "text":q.question,
+                 "type":q.type,
+                 "options":q.options or []
+                 } for q in questions
+            ],
+            "responses":[{
+                "id": a.id,
+                "question_id": a.question_id,
+                "response": a.answer
+            } for a in answers]
+        }
+
+@app.post("/api/forms/{formid}/submit")
+def submit_response(formid: int, data: Response_structure):
+    with Session(engine) as session:
+        for ans in data.answers:
+                qid=ans.questionId
+                answer=Response(form_id=formid,question_id=qid,answer=ans.answerValue)
+                session.add(answer)
+        session.commit()

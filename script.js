@@ -39,7 +39,19 @@ function navigate(viewId) {
 
 // Init: Ensure at least one question block exists when loaded
 window.onload = () => {
-    addQuestion();
+    const urlParams = new URLSearchParams(window.location.search);
+    const formId = urlParams.get('formId');
+    
+    if (formId) {
+        // Enforce Respondent Mode
+        window.isRespondentMode = true;
+        document.querySelector('.navbar nav').style.display = 'none';
+        navigate('fill-form');
+        loadFormUI(formId, true);
+    } else {
+        window.isRespondentMode = false;
+        addQuestion();
+    }
 };
 
 function addQuestion() {
@@ -201,6 +213,19 @@ async function discoverAllForms() {
     }
 }
 
+function copyShareLink(formId) {
+    const url = new URL(window.location.href);
+    // Remove query params if they exist (although there shouldn't be any in admin root) and add formId securely
+    url.search = '';
+    url.searchParams.set('formId', formId);
+    navigator.clipboard.writeText(url.toString()).then(() => {
+        alert('Share link copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy link: ', err);
+        alert('Failed to copy link. Manually copy this URL: ' + url.toString());
+    });
+}
+
 async function renderFillForm() {
     const container = document.getElementById('fill-form-container');
     container.innerHTML = `<div class="empty-state">Fetching forms from Database...</div>`;
@@ -219,14 +244,19 @@ async function renderFillForm() {
     `;
     
     dbForms.forEach(form => {
-        html += `<button class="btn btn-secondary" style="text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="loadFormUI(${form.id})"><strong>Form ${form.id}:</strong> ${form.title}</button>`;
+        html += `
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <button class="btn btn-secondary" style="flex: 1; text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="loadFormUI(${form.id})"><strong>Form ${form.id}:</strong> ${form.title}</button>
+                <button class="btn btn-primary" onclick="copyShareLink(${form.id})" title="Copy Share Link">🔗 Share Form</button>
+            </div>
+        `;
     });
     
     html += `</div></div>`;
     container.innerHTML = html;
 }
 
-async function loadFormUI(formId) {
+async function loadFormUI(formId, isRespondent = false) {
     const container = document.getElementById('fill-form-container');
     container.innerHTML = `<div class="empty-state">Loading Form ${formId}...</div>`;
     
@@ -251,7 +281,7 @@ async function loadFormUI(formId) {
     
     let html = `
         <div style="margin-bottom: 24px;">
-            <button class="btn btn-secondary btn-sm" onclick="renderFillForm()" style="margin-bottom: 12px;">← Back to Forms list</button>
+            ${isRespondent ? '' : `<button class="btn btn-secondary btn-sm" onclick="renderFillForm()" style="margin-bottom: 12px;">← Back to Forms list</button>`}
             <h2 style="font-size: 2rem; margin-bottom: 8px;">${formToRender.title}</h2>
             <p style="color: var(--text-sec);">${(formToRender.description||'').replace(/\n/g, '<br>')}</p>
         </div>
@@ -318,9 +348,10 @@ async function submitResponse(e) {
     // -----------------------------------------------------------------
     // API INTEGRATION POINT: POST /forms/{id}/submit
     // -----------------------------------------------------------------
-    /*
+    const formId = formData.get("form_id");
+    
     try {
-        const res = await fetch(`http://localhost:8000/api/forms/1/submit`, {
+        const res = await fetch(`http://localhost:8000/api/forms/${formId}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -329,11 +360,21 @@ async function submitResponse(e) {
     } catch(err) {
         console.warn("Backend failover to local push hook.");
     }
-    */
+    
     
     allResponses.push(payload);
-    alert('Response submitted successfully! You can view it in the Responses tab.');
-    e.target.reset(); 
+    
+    if (window.isRespondentMode) {
+        document.getElementById('fill-form-container').innerHTML = `
+            <div style="text-align: center; padding: 60px 20px;">
+                <h2 style="color: var(--primary); font-size: 2.5rem; margin-bottom: 16px;">Thank You!</h2>
+                <p style="color: var(--text-sec); font-size: 1.2rem;">Your response has been successfully recorded.</p>
+            </div>
+        `;
+    } else {
+        alert('Response submitted successfully! You can view it in the Responses tab.');
+        e.target.reset(); 
+    }
 }
 
 /* =========================================
@@ -341,45 +382,93 @@ async function submitResponse(e) {
    ========================================= */
 
 async function fetchResponses(formId) {
-    // -----------------------------------------------------------------
-    // API INTEGRATION POINT: GET /forms/{id}/responses
-    // -----------------------------------------------------------------
-    /*
     try {
         const res = await fetch(`http://localhost:8000/api/forms/${formId}/responses`);
         const data = await res.json();
         return data; 
     } catch(err) {
-        return allResponses;
+        return { responses: [], questions: [] };
     }
-    */
-   return allResponses;
 }
 
 async function renderResponses() {
     const container = document.getElementById('responses-container');
-    const responses = await fetchResponses(1); // MOCK Form ID grouping trigger
+    container.innerHTML = `<div class="empty-state">Fetching forms from Database...</div>`;
     
-    let html = `<h2>Responses (${responses.length})</h2>`;
+    const dbForms = await discoverAllForms();
     
-    if (responses.length === 0) {
-        html += `<div class="empty-state">No responses yet. Switch to Fill Form to submit one!</div>`;
+    if (dbForms.length === 0) {
+        container.innerHTML = `<div class="empty-state">No forms available in the database.</div>`;
+        return;
+    }
+    
+    let html = `
+        <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 2rem; margin-bottom: 16px;">Select a Form to View Responses</h2>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+    `;
+    
+    dbForms.forEach(form => {
+        let safeTitle = (form.title || 'Untitled Form').replace(/'/g, "\\'");
+        html += `<button class="btn btn-secondary" style="text-align: left; background: var(--surface); color: var(--text-main); font-size: 1.1rem; padding: 16px;" onclick="viewResponsesForForm(${form.id}, '${safeTitle}')"><strong>Form ${form.id}:</strong> ${form.title}</button>`;
+    });
+    
+    html += `</div></div>`;
+    container.innerHTML = html;
+}
+
+async function viewResponsesForForm(formId, formTitle) {
+    const container = document.getElementById('responses-container');
+    container.innerHTML = `<div class="empty-state">Loading Responses for ${formTitle}...</div>`;
+    
+    const responseData = await fetchResponses(formId);
+    
+    const responsesFlat = responseData.responses || [];
+    const questions = responseData.questions || [];
+    const numQuestions = questions.length;
+    
+    const groupedSubmissions = [];
+    if (numQuestions > 0) {
+        for (let i = 0; i < responsesFlat.length; i += numQuestions) {
+            const chunk = responsesFlat.slice(i, i + numQuestions);
+            groupedSubmissions.push({
+                submittedAt: new Date().toISOString(),
+                answers: chunk.map(ans => {
+                    const qInfo = questions.find(q => q.id == ans.question_id);
+                    return {
+                        questionText: qInfo ? qInfo.text : 'Unknown Question',
+                        answerValue: ans.response
+                    };
+                })
+            });
+        }
+    }
+    
+    let html = `
+        <div style="margin-bottom: 24px;">
+            <button class="btn btn-secondary btn-sm" onclick="renderResponses()" style="margin-bottom: 12px;">← Back to Forms list</button>
+            <h2 style="font-size: 2rem; margin-bottom: 8px;">Responses for: ${formTitle} (${groupedSubmissions.length})</h2>
+        </div>
+    `;
+    
+    if (groupedSubmissions.length === 0) {
+        html += `<div class="empty-state">No responses yet.</div>`;
         container.innerHTML = html;
         return;
     }
     
-    responses.forEach((resp, idx) => {
-        const friendlyDate = new Date(resp.submittedAt).toLocaleString();
+    groupedSubmissions.forEach((resp, idx) => {
+        // We don't have accurate server side timestamps yet, so just count index.
         html += `
             <div class="submission-card">
-                <div style="font-size: 0.85rem; color: var(--text-sec); margin-bottom: 12px;">Submission #${idx + 1} • ${friendlyDate}</div>
+                <div style="font-size: 0.85rem; color: var(--text-sec); margin-bottom: 12px;">Submission #${idx + 1}</div>
         `;
         
         resp.answers.forEach(ans => {
             html += `
                 <div class="answer-row">
-                    <div class="answer-q">${ans.questionText}</div>
-                    <div class="answer-a">${ans.answerValue}</div>
+                    <div class="answer-q">${ans.questionText || 'Unknown Question'}</div>
+                    <div class="answer-a">${ans.answerValue || 'No answer'}</div>
                 </div>
             `;
         });
