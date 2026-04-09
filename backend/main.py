@@ -79,7 +79,7 @@ dburl=str(os.getenv("DatabaseUrl"))
 if dburl.startswith("postgres://"):
     dburl=dburl.replace("postgres://","postgresql://")
 
-engine=create_engine("postgresql+psycopg2://minimalform:password@localhost:5432/form")
+engine=create_engine(dburl)
 
 class User(Base):
     __tablename__="users"
