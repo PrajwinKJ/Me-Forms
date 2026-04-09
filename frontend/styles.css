@@ -141,6 +141,8 @@ nav {
 }
 
 input[type="text"], 
+input[type="email"], 
+input[type="password"], 
 textarea, 
 select {
     width: 100%;
@@ -152,9 +154,12 @@ select {
     font-family: var(--font-family);
     color: var(--text-main);
     transition: all 0.2s ease;
+    outline: none;
 }
 
 input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus, 
 textarea:focus, 
 select:focus {
     outline: none;
@@ -164,6 +169,8 @@ select:focus {
 }
 
 input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
 textarea::placeholder {
     color: #9ca3af;
 }
@@ -449,6 +456,56 @@ input[type="radio"]:checked::after {
     height: 10px;
     background-color: var(--primary);
     border-radius: 50%;
+}
+
+/* Logout Confirmation Modal */
+.modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+}
+
+.modal-card {
+    width: min(100%, 420px);
+    background: white;
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
+    text-align: center;
+}
+
+.modal-icon {
+    font-size: 2.5rem;
+    margin-bottom: 18px;
+}
+
+.modal-card h2 {
+    margin-bottom: 12px;
+    font-size: 1.5rem;
+    color: var(--text-main);
+}
+
+.modal-text {
+    color: var(--text-sec);
+    line-height: 1.7;
+    margin-bottom: 28px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.modal-actions .btn {
+    min-width: 120px;
 }
 
 /* Responsive Design */

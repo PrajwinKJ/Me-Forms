@@ -79,7 +79,7 @@ dburl=str(os.getenv("DatabaseUrl"))
 if dburl.startswith("postgres://"):
     dburl=dburl.replace("postgres://","postgresql://")
 
-engine=create_engine(dburl)
+engine=create_engine("postgresql+psycopg2://minimalform:password@localhost:5432/form")
 
 class User(Base):
     __tablename__="users"
@@ -139,9 +139,9 @@ def get_all_forms(userid: int=Depends(gcu)):
         return [{"id": form.id, "title": form.title, "description": form.description} for form in forms]
 
 @app.get("/api/forms/{formid}")
-def getform(formid: int,userid: int=Depends(gcu)):
+def getform(formid: int):
     with Session(engine) as session:
-        form=session.query(Form).filter(Form.id==formid,Form.user_id==userid).first()
+        form=session.query(Form).filter(Form.id==formid).first()
         questions=session.query(Question).filter(Question.form_id==formid).all()
     if form:
         return{

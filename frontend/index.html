@@ -13,10 +13,30 @@
             <button onclick="navigate('create-form')" class="nav-btn active" id="nav-create-form">Create Form</button>
             <button onclick="navigate('fill-form')" class="nav-btn" id="nav-fill-form">Fill Form</button>
             <button onclick="navigate('responses')" class="nav-btn" id="nav-responses">Responses</button>
+            <button onclick="logout()" class="nav-btn" id="nav-logout" style="display: none;">Logout</button>
         </nav>
     </header>
 
     <main class="container">
+        <!-- VIEW: Auth (Login / Signup) -->
+        <section id="view-auth" class="view-section" style="display: none;">
+            <div class="card" style="max-width: 400px; margin: 40px auto;">
+                <h2 id="auth-title">Login</h2>
+                <form id="auth-form" onsubmit="handleAuth(event)">
+                    <div class="form-group row">
+                        <input type="email" id="auth-email" placeholder="Email" class="input-main" required>
+                    </div>
+                    <div class="form-group row" style="margin-bottom: 24px;">
+                        <input type="password" id="auth-password" placeholder="Password" class="input-main" required>
+                    </div>
+                    <div class="actions-row" style="flex-direction: column; gap: 12px; align-items: stretch;">
+                        <button type="submit" class="btn btn-primary" id="auth-submit-btn">Login</button>
+                        <button type="button" class="btn btn-secondary" id="auth-toggle-btn" onclick="toggleAuthMode()">Need an account? Sign up</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
         <!-- VIEW: Create Form -->
         <section id="view-create-form" class="view-section active">
             <div class="card">
@@ -53,6 +73,18 @@
             </div>
         </section>
     </main>
+
+    <div class="modal-backdrop" id="logout-modal" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
+            
+            <h2 id="logout-modal-title">Confirm Logout</h2>
+            <p class="modal-text">You are about to end your session. This will require you to log in again to create or view form responses</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeLogoutModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="confirmLogout()">Logout</button>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>

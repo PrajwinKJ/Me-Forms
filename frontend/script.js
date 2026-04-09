@@ -1,19 +1,123 @@
-// script.js
-// Logic for the Minimal Forms UI.
-// Uses simple local state to demonstrate the UI flow, while providing 
-// placeholder fetch() calls ready to be connected to a FastAPI backend.
-
-/* =========================================
-   1. STATE & MOCK DATA
-   ========================================= */
 let currentForm = null;          // Currently created / loaded form state
 let allResponses = [];           // Stores submissions securely in mem
 let questionIdCounter = 0;       // Unique IDs for builder UI
+
+let authMode = 'login';
+const API_BASE = 'http://localhost:8000';
+
+function toggleAuthMode() {
+    authMode = authMode === 'login' ? 'signup' : 'login';
+    const title = document.getElementById('auth-title');
+    if(title) title.innerText = authMode === 'login' ? 'Login' : 'Signup';
+    const subbtn = document.getElementById('auth-submit-btn');
+    if(subbtn) subbtn.innerText = authMode === 'login' ? 'Login' : 'Signup';
+    const togbtn = document.getElementById('auth-toggle-btn');
+    if(togbtn) togbtn.innerText = authMode === 'login' ? 'Need an account? Sign up' : 'Already have an account? Login';
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    
+    try {
+        const res = await fetch(`${API_BASE}/api/${authMode}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        
+        if (data.error || data.Error) {
+            alert(data.error || data.Error);
+        } else if (authMode === 'signup') {
+            alert("Signup successful! Please login.");
+            toggleAuthMode();
+        } else if (data.access_token) {
+            localStorage.setItem('token', data.access_token);
+            checkAuthAndInit();
+        }
+    } catch(err) {
+        alert("Authentication failed.");
+        console.error(err);
+    }
+}
+
+function logout() {
+    showLogoutModal();
+}
+
+function showLogoutModal() {
+    const modal = document.getElementById('logout-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeLogoutModal() {
+    const modal = document.getElementById('logout-modal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function confirmLogout() {
+    closeLogoutModal();
+    localStorage.removeItem('token');
+    checkAuthAndInit();
+}
+
+function checkAuthAndInit() {
+    const token = localStorage.getItem('token');
+    if (token) {
+        const logoutBtn = document.getElementById('nav-logout');
+        if(logoutBtn) logoutBtn.style.display = 'inline-block';
+        document.getElementById('nav-create-form').style.display = 'inline-block';
+        document.getElementById('nav-responses').style.display = 'inline-block';
+        navigate('create-form');
+        if(document.querySelectorAll('.question-block').length === 0) {
+             addQuestion();
+        }
+    } else {
+        const logoutBtn = document.getElementById('nav-logout');
+        if(logoutBtn) logoutBtn.style.display = 'none';
+        
+        // Ensure Create Form button is visible so they can click it and trigger auth
+        document.getElementById('nav-create-form').style.display = 'inline-block';
+        document.getElementById('nav-responses').style.display = 'none';
+        
+        // Default to fill-form instead of auth
+        navigate('fill-form');
+    }
+}
+
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('token');
+    const headers = { 
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+        alert("Session expired or unauthorized. Please login again.");
+        logout();
+        throw new Error("Unauthorized");
+    }
+    return res;
+}
+
 
 /* =========================================
    2. NAVIGATION LOGIC
    ========================================= */
 function navigate(viewId) {
+    if ((viewId === 'create-form' || viewId === 'responses') && !localStorage.getItem('token')) {
+        viewId = 'auth';
+    }
     // Hide all views
     document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -37,7 +141,7 @@ function navigate(viewId) {
    3. "CREATE FORM" BUILDER LOGIC
    ========================================= */
 
-// Init: Ensure at least one question block exists when loaded
+// Init: Ensure auth logic
 window.onload = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const formId = urlParams.get('formId');
@@ -45,12 +149,13 @@ window.onload = () => {
     if (formId) {
         // Enforce Respondent Mode
         window.isRespondentMode = true;
-        document.querySelector('.navbar nav').style.display = 'none';
+        const nav = document.querySelector('.navbar nav');
+        if(nav) nav.style.display = 'none';
         navigate('fill-form');
         loadFormUI(formId, true);
     } else {
         window.isRespondentMode = false;
-        addQuestion();
+        checkAuthAndInit();
     }
 };
 
@@ -182,7 +287,7 @@ async function saveForm() {
     // -----------------------------------------------------------------
 
     try {
-        const res = await fetch('https://minimal-forms.onrender.com/api/forms', {
+        const res = await fetchWithAuth(`${API_BASE}/api/forms`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -213,8 +318,11 @@ async function saveForm() {
 
 async function discoverAllForms() {
     // Fetch all forms natively using the backend list API
+    const token = localStorage.getItem('token');
+    if (!token) return []; // Abort if not authenticated to prevent 401 loops
+    
     try {
-        const res = await fetch(`https://minimal-forms.onrender.com/api/forms`);
+        const res = await fetchWithAuth(`${API_BASE}/api/forms`);
         if(!res.ok) return [];
         return await res.json();
     } catch(err) {
@@ -274,7 +382,7 @@ async function loadFormUI(formId, isRespondent = false) {
     
     let formToRender = null;
     try {
-        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}`);
+        const res = await fetch(`${API_BASE}/api/forms/${formId}`);
         formToRender = await res.json();
     } catch(err) {
         alert("Failed to fetch form structure");
@@ -363,7 +471,7 @@ async function submitResponse(e) {
     const formId = formData.get("form_id");
     
     try {
-        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}/submit`, {
+        const res = await fetch(`${API_BASE}/api/forms/${formId}/submit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -395,7 +503,7 @@ async function submitResponse(e) {
 
 async function fetchResponses(formId) {
     try {
-        const res = await fetch(`https://minimal-forms.onrender.com/api/forms/${formId}/responses`);
+        const res = await fetchWithAuth(`${API_BASE}/api/forms/${formId}/responses`);
         const data = await res.json();
         return data; 
     } catch(err) {
