@@ -3,7 +3,10 @@ let allResponses = [];           // Stores submissions securely in mem
 let questionIdCounter = 0;       // Unique IDs for builder UI
 
 let authMode = 'login';
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'https://your-backend-url.com';
+
+// Silently wake up the backend (useful for free tier hosting that sleeps)
+fetch(`${API_BASE}/`).catch(() => {});
 
 function toggleAuthMode() {
     authMode = authMode === 'login' ? 'signup' : 'login';
