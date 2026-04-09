@@ -41,8 +41,12 @@ async function handleAuth(e) {
             checkAuthAndInit();
         }
     } catch(err) {
-        alert("Authentication failed.");
-        console.error(err);
+        console.error("Auth Error:", err);
+        if (err.message.includes('Failed to fetch')) {
+            alert("Backend is waking up or unavailable. As this is a free host, it may take ~40 seconds to boot. Please wait and try again!");
+        } else {
+            alert("Authentication failed.");
+        }
     }
 }
 
