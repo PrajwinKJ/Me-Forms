@@ -3,7 +3,7 @@ let allResponses = [];           // Stores submissions securely in mem
 let questionIdCounter = 0;       // Unique IDs for builder UI
 
 let authMode = 'login';
-const API_BASE = 'https://minimal-forms.onrender.com/';
+const API_BASE = 'https://minimal-forms.onrender.com';
 
 // Silently wake up the backend (useful for free tier hosting that sleeps)
 fetch(`${API_BASE}/`).catch(() => {});
